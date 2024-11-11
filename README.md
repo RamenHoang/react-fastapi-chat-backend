@@ -30,6 +30,10 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
+## Init database
+
+Run SQL command in [react_fastapi_chatweb_2024_11_12.sql](react_fastapi_chatweb_2024_11_12.sql)
+
 ## Run the Application
 
 ```

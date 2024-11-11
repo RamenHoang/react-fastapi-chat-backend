@@ -4,14 +4,9 @@ from sqlalchemy.orm import relationship
 from database import Base
 
 
-class Entity(Base):
-    __tablename__ = 'entities'
-    id = Column(Integer, primary_key=True, index=True)
-
-
-class User(Entity):
+class User(Base):
     __tablename__ = 'users'
-    id = Column(Integer, ForeignKey('entities.id'), primary_key=True)
+    id = Column(Integer, primary_key=True)
     username = Column(String(255), unique=True, index=True)
     full_name = Column(String(255))
     hashed_password = Column(String(255))
@@ -22,9 +17,9 @@ class User(Entity):
     private_key = Column(Text)
 
 
-class Group(Entity):
+class Group(Base):
     __tablename__ = 'groups'
-    id = Column(Integer, ForeignKey('entities.id'), primary_key=True)
+    id = Column(Integer, primary_key=True)
     name = Column(String(255))
     public_key = Column(Text)
     private_key = Column(Text)
