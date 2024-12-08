@@ -1,12 +1,16 @@
 from pydantic import BaseModel
 from typing import Optional
 
+from constants import ROLE_MEMBER
+
 
 class UserRegister(BaseModel):
     username: str
     full_name: str
     password: str
     profile_picture: Optional[str] = None
+    email: str
+    role: int = ROLE_MEMBER
 
 
 class UserLogin(BaseModel):
@@ -20,6 +24,7 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
     private_key: Optional[str] = None
     public_key: Optional[str] = None
+    role: int
 
 
 class GroupCreate(BaseModel):

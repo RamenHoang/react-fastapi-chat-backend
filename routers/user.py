@@ -1,9 +1,11 @@
 import logging
+import jwt
 from pydantic import BaseModel
 from sqlalchemy import or_, and_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from fastapi import APIRouter, Depends, HTTPException, status
+import os
 
 from auth import get_password_hash, create_access_token, verify_password, get_current_user, oauth2_scheme
 from database import get_db
@@ -14,6 +16,10 @@ from utils import generate_rsa_key_pair
 logging.basicConfig(level=logging.INFO)
 
 router = APIRouter()
+
+SECRET_KEY = os.getenv("SECRET_KEY", "Zsigg2rvbk/BHUaj")
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", '30'))
+ALGORITHM = "HS256"
 
 
 @router.post("/register", response_model=TokenResponse)
@@ -28,7 +34,9 @@ def register(user: UserRegister, db: Session = Depends(get_db)):
         hashed_password=hashed_password,
         profile_picture=user.profile_picture,
         public_key=public_key.decode('utf-8'),
-        private_key=private_key.decode('utf-8')
+        private_key=private_key.decode('utf-8'),
+        email=user.email,
+        role=user.role
     )
 
     db.add(db_user)
@@ -41,7 +49,11 @@ def register(user: UserRegister, db: Session = Depends(get_db)):
             status_code=status.HTTP_400_BAD_REQUEST, detail="Username already exists")
 
     access_token = create_access_token(data={"sub": db_user.username})
-    return {"access_token": access_token, "user_id": db_user.id}
+    return {
+        "access_token": access_token,
+        "user_id": db_user.id,
+        "role": db_user.role
+    }
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -57,7 +69,8 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
         "access_token": access_token,
         "user_id": db_user.id,
         "public_key": db_user.public_key,
-        "private_key": db_user.private_key
+        "private_key": db_user.private_key,
+        "role": db_user.role
     }
 
 
@@ -211,3 +224,26 @@ def set_typing_status(typing_status: TypingStatus, token: str = Depends(oauth2_s
         "message": f"Typing status set to {typing_status.is_typing} for user {current_user.username}",
         "typing_chat_id": typing_status.typing_chat_id
     }
+
+
+@router.get("")
+def list_users(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    current_username = payload.get("sub")
+    if current_username is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+        )
+
+    users = db.query(User).filter(User.username != current_username).order_by(User.id.desc()).all()
+    return [
+        {
+            "id": user.id,
+            "username": user.username,
+            "full_name": user.full_name,
+            "email": user.email,
+            "role": user.role
+        }
+        for user in users
+    ]

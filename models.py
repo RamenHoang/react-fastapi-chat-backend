@@ -1,6 +1,7 @@
 from datetime import datetime
 from sqlalchemy import Column, String, Integer, ForeignKey, Text, DateTime, Boolean
 from sqlalchemy.orm import relationship
+from constants import ROLE_MEMBER
 from database import Base
 
 
@@ -15,6 +16,8 @@ class User(Base):
     typing_chat_id = Column(Integer)
     public_key = Column(Text)
     private_key = Column(Text)
+    role = Column(Integer, default=ROLE_MEMBER)
+    email = Column(String(255))
 
 
 class Group(Base):
