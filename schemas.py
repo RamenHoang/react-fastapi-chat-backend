@@ -35,3 +35,11 @@ class MessageCreate(BaseModel):
     receiver_id: int
     content: str
     encrypted_for_user_id: Optional[int] = None
+
+
+class UserUpdate(BaseModel):
+    username: Optional[str] = None
+    full_name: Optional[str] = None
+    email: Optional[str] = None
+    role: Optional[int] = None
+    password: Optional[str] = None

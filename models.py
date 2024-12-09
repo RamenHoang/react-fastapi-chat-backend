@@ -18,6 +18,7 @@ class User(Base):
     private_key = Column(Text)
     role = Column(Integer, default=ROLE_MEMBER)
     email = Column(String(255))
+    is_verify = Column(Boolean, default=False)
 
 
 class Group(Base):
