@@ -237,7 +237,9 @@ def get_all_user_data(user_id: int, db: Session = Depends(get_db), current_user:
                 "receiver_id": msg.receiver_id,
                 "content": msg.content,
                 "timestamp": msg.timestamp,
-                "status": message_status_map.get(msg.id, "unknown")
+                "status": message_status_map.get(msg.id, "unknown"),
+                "is_pin": msg.is_pin,
+                "file_data": msg.file_data
             }
             for msg in messages
         ],
@@ -397,3 +399,4 @@ def get_current_user_data(token: str = Depends(oauth2_scheme), db: Session = Dep
         "profile_picture": current_user.profile_picture,
         "public_key": current_user.public_key
     }
+

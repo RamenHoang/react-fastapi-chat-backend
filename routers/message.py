@@ -3,6 +3,7 @@ from typing import List
 from pydantic import BaseModel
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from constants import ROLE_ADMIN, ROLE_MODERATOR
 from models import Message, User, Group, GroupMembership, UserMessageStatus
 from schemas import MessageCreate
 from database import get_db
@@ -106,6 +107,85 @@ async def mark_messages_as_read(
     await manager.broadcast(f"Messages {request.message_ids} marked as 'read'")
 
     return {"message": f"Status for messages {request.message_ids} set to 'read'"}
+
+
+@router.delete("/delete_message/{message_id}")
+async def delete_message(message_id: int, token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    current_user = get_current_user(token, db)
+    message = db.query(Message).filter(Message.id == message_id).first()
+
+    if not message:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Message not found")
+
+    if not current_user.role in [ROLE_ADMIN, ROLE_MODERATOR]:
+        if message.sender_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="Operation not allowed")
+
+    db.query(UserMessageStatus).filter(UserMessageStatus.message_id == message_id).delete()
+    db.delete(message)
+    db.commit()
+
+    await manager.broadcast(f"Message {message_id} deleted")
+
+    return {"message": "Message deleted successfully"}
+
+
+@router.put("/pin_message/{message_id}")
+async def pin_message(message_id: int, db: Session = Depends(get_db)):
+    message = db.query(Message).filter(Message.id == message_id).first()
+
+    if not message:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Message not found")
+
+    # if message.sender_id != current_user.id and current_user.role not in [ROLE_ADMIN, ROLE_MODERATOR]:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_403_FORBIDDEN, detail="Operation not allowed")
+
+    message.is_pin = not message.is_pin
+    db.commit()
+
+    await manager.broadcast(f"Message {message_id} {'pinned' if message_id else 'unpinned'}")
+
+    return {"message": f"Message {'pinned' if message_id else 'unpinned'} successfully"}
+
+@router.post("/send_image_message")
+async def send_image_message(message: MessageCreate, token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    current_user = get_current_user(token, db)
+
+    group = db.query(Group).filter(Group.id == message.receiver_id).first()
+    db_message = Message(
+        sender_id=current_user.id,
+        receiver_id=group.id,
+        is_group_message=True,
+        file_data=message.content
+    )
+    db.add(db_message)
+    db.commit()
+    db.refresh(db_message)
+
+    group_members = db.query(GroupMembership).filter(
+        GroupMembership.group_id == group.id).all()
+
+    for member in group_members:
+        status = "read" if member.user_id == current_user.id else "sent"
+        user_message_status = UserMessageStatus(
+            message_id=db_message.id,
+            user_id=member.user_id,
+            status=status
+        )
+        db.add(user_message_status)
+
+    db.commit()
+
+    notification_message = {
+        "type": "message",
+    }
+    await manager.broadcast(json.dumps(notification_message))
+
+    return {"message": "Message sent"}
 
 # @router.get("/chats")
 # def get_user_chats(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):

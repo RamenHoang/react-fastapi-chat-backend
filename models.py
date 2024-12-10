@@ -38,8 +38,9 @@ class Message(Base):
     timestamp = Column(DateTime, default=datetime.utcnow)
     is_group_message = Column(Boolean, default=False)
     encrypted_for_user_id = Column(Integer)
-
     sender = relationship("User", foreign_keys=[sender_id])
+    is_pin = Column(Boolean, default=False)
+    file_data = Column(Text, default=None)
 
 
 class GroupMembership(Base):
